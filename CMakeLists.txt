@@ -1,6 +1,5 @@
-
 cmake_minimum_required(VERSION 3.10)
-project(gv_video_decoder CXX)
+project(gv_video_decoder CXX C)
 
 foreach(flag_var
         CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_DEBUG
