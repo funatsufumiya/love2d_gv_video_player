@@ -9,7 +9,7 @@
 ## Note
 
 - `src` and `test`, `lz4` is only needed if you build by yourself.
-  - You just need `.lua` and `.dll`/`.dylib`/`.so` for production.
+  - You just need `.lua` and `.dll`/`.dylib`/`.so` for production and game development.
 - For encoding GVs, please use [my forked releases (tools)](https://github.com/funatsufumiya/ofxExtremeGpuVideo/releases/tag/1.1.2).
 
 ## Demo
