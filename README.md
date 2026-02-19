@@ -2,6 +2,8 @@
 
 [gv-video](https://github.com/Ushio/ofxExtremeGpuVideo#binary-file-format-gv) player for LÖVE (Love2D)
 
+(gv-video is a kind of like HAP codec, GPU friendly extreme fast codec, with alpha channel support.)
+
 ## Demo
 
 ```bash
