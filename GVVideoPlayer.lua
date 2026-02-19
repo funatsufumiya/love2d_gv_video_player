@@ -74,7 +74,7 @@ local function make_compressed_image(dxt_data, ext, width, height, mipmaps, dxt_
     return love.image.newCompressedData(byte_data, fake_name)
 end
 
-function GVVideoPlayer.new(path)
+function GVVideoPlayer.new(path, loop, pause_on_last)
     local self = setmetatable({}, GVVideoPlayer)
     self.lib = ffi.load("gv_video_decoder")
     self.decoder = self.lib.gv_video_decoder_open(path)
@@ -85,6 +85,7 @@ function GVVideoPlayer.new(path)
     self.fps = self.lib.gv_video_decoder_get_fps(self.decoder)
     self.frame_bytes = self.lib.gv_video_decoder_get_frame_bytes(self.decoder)
     local format_id = self.lib.gv_video_decoder_get_format(self.decoder)
+    self.format_id = format_id
     self.love_format = get_love_compressed_format(format_id)
     local supported = get_supported_compressed_formats()
     assert(self.love_format ~= nil, "Format is nil")
@@ -92,7 +93,10 @@ function GVVideoPlayer.new(path)
     self.buf = ffi.new("uint8_t[?]", self.frame_bytes)
     self.frame = 0
     self.elapsed = 0
-    
+    self.is_playing = false
+    self.is_paused = false
+    self.loop = loop and true or false
+    self.pause_on_last = pause_on_last and true or false
     -- first frame decoding
     local decoded = self.lib.gv_video_decoder_decode_frame(self.decoder, self.frame, self.buf)
     assert(decoded == self.frame_bytes, "decode failed")
@@ -101,27 +105,78 @@ function GVVideoPlayer.new(path)
 end
 
 function GVVideoPlayer:update(dt)
+    if not self.is_playing or self.is_paused then
+        return
+    end
     self.elapsed = self.elapsed + dt
     if self.elapsed >= 1.0 / self.fps then
         self.elapsed = self.elapsed - 1.0 / self.fps
         self.frame = self.frame + 1
-        if self.frame >= self.frame_count then self.frame = 0 end
+        if self.frame >= self.frame_count then
+            if self.loop then
+                self.frame = 0
+            elseif self.pause_on_last then
+                self.frame = self.frame_count - 1
+                self:pause()
+                return
+            else
+                self:stop()
+                return
+            end
+        end
         local decoded = self.lib.gv_video_decoder_decode_frame(self.decoder, self.frame, self.buf)
         if decoded == self.frame_bytes then
             self.tex = love.graphics.newImage(make_compressed_image(self.buf, self.love_format, self.width, self.height, 1, self.frame_bytes))
         end
     end
 end
+function GVVideoPlayer:setLoop(loop)
+    self.loop = loop and true or false
+end
+
+function GVVideoPlayer:getLoop()
+    return self.loop
+end
+
+function GVVideoPlayer:play()
+    self.is_playing = true
+    self.is_paused = false
+end
+
+function GVVideoPlayer:pause()
+    if self.is_playing then
+        self.is_paused = true
+    end
+end
+
+function GVVideoPlayer:stop()
+    self.is_playing = false
+    self.is_paused = false
+    self.frame = 0
+    self.elapsed = 0
+    self.tex = nil
+end
+
+function GVVideoPlayer:getFormat()
+    return self.format_id, self.love_format
+end
 
 function GVVideoPlayer:draw(x, y, r, sx, sy)
-    if self.tex then
-        x = x or 0
-        y = y or 0
-        r = r or 0
-        sx = sx or 1
-        sy = sy or 1
-        love.graphics.draw(self.tex, x, y, r, sx, sy)
-    end
+    if not self.tex then return end
+    x = x or 0
+    y = y or 0
+    r = r or 0
+    sx = sx or 1
+    sy = sy or 1
+    love.graphics.draw(self.tex, x, y, r, sx, sy)
+end
+
+function GVVideoPlayer:setPauseOnLast(pause_on_last)
+    self.pause_on_last = pause_on_last and true or false
+end
+
+function GVVideoPlayer:getPauseOnLast()
+    return self.pause_on_last
 end
 
 function GVVideoPlayer:getDimensions()
