@@ -1,5 +1,14 @@
+
 cmake_minimum_required(VERSION 3.10)
 project(gv_video_decoder CXX)
+
+foreach(flag_var
+        CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_DEBUG
+        CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_DEBUG)
+    if(${flag_var} MATCHES "/MT")
+        string (REPLACE "/MT" "/MD" ${flag_var} "${${flag_var}}")
+    endif()
+endforeach()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
