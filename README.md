@@ -2,12 +2,15 @@
 
 [gv-video](https://github.com/Ushio/ofxExtremeGpuVideo#binary-file-format-gv) player for LÖVE (Love2D)
 
+![docs/screenshot.png](docs/screenshot.png)
+
 (gv-video is a kind of like HAP codec, GPU friendly extreme fast CPU decodable codec, with alpha channel support.)
 
 ## Note
 
 - `src` and `test`, `lz4` is only needed if you build by yourself.
   - You just need `.lua` and `.dll`/`.dylib`/`.so` for production.
+- For encoding GVs, please use [my forked releases (tools)](https://github.com/funatsufumiya/ofxExtremeGpuVideo/releases/tag/1.1.2).
 
 ## Demo
 
