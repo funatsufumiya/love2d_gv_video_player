@@ -12,6 +12,7 @@
 ## Demo
 
 ```bash
+$ git submodule update --init --recursive
 $ love --console test/lua/test_gv_love2d_decode/
 ```
 
