@@ -24,23 +24,84 @@ function script_path()
    return str:match("(.*/)") or "./"
 end
 
+local function normalize_path(path, sep)
+    local t = {}
+    local drive = path:match("^([A-Za-z]:)")
+    local start = drive and #drive + 1 or 1
+    if path:sub(start, start) == sep then start = start + 1 end
+    for part in path:sub(start):gmatch("[^/\\]+") do
+        if part == ".." then
+            if #t > 0 then table.remove(t) end
+        elseif part ~= "." and part ~= "" then
+            table.insert(t, part)
+        end
+    end
+    return (drive and drive .. sep or sep) .. table.concat(t, sep)
+end
+
+local function to_abs_path(relpath)
+    local is_windows = package.config:sub(1,1) == "\\"
+    local sep = is_windows and "\\" or "/"
+    local base = love.filesystem.getSourceBaseDirectory and love.filesystem.getSourceBaseDirectory() or "."
+    if relpath:match("^%a:[/\\]") or relpath:sub(1,1) == "/" or relpath:sub(1,1) == "\\" then
+        return normalize_path(relpath, sep)
+    end
+    local path = base .. sep .. relpath
+    path = normalize_path(path, sep)
+    return path
+end
+
+local function file_exists(path)
+    local f = io.open(path, "rb")
+    if f then f:close() return true end
+    return false
+end
+
+local function get_love_compressed_format(fmt)
+    -- C++側 enum GPU_COMPRESS: DXT1=1, DXT3=3, DXT5=5, BC7=7
+    if fmt == 1 then return "dxt1"
+    elseif fmt == 3 then return "dxt3"
+    elseif fmt == 5 then return "dxt5"
+    elseif fmt == 7 then return "bc7"
+    else return nil end
+end
+
+local function get_supported_compressed_formats()
+    local t = {}
+    for k, v in pairs(love.graphics.getCompressedImageFormats()) do
+        if v then t[k] = true end
+    end
+    return t
+end
+
+local function make_compressed_image(byte_data, ext)
+    -- ext: "dxt1", "dxt3", "dxt5", "bc7"
+    local fake_name = "frame." .. ext
+    return love.image.newCompressedData(byte_data, fake_name)
+end
+
 function love.load()
-    lib = ffi.load(script_path() .. "../../../build/Release/gv_video_decoder.dll")
-    local video_path = script_path() .. "../../../test_assets/gv_assets_for_test/alpha-countdown.gv"
+    lib = ffi.load("gv_video_decoder")
+    local video_path = to_abs_path("../../test_assets/gv_assets_for_test/alpha-countdown.gv")
+    assert(file_exists(video_path), "Video file not found: " .. video_path)
     decoder = lib.gv_video_decoder_open(video_path)
-    assert(decoder, "Failed to open video file")
+    assert(decoder, "Failed to open video file: " .. video_path)
     width = lib.gv_video_decoder_get_width(decoder)
     height = lib.gv_video_decoder_get_height(decoder)
     frame_count = lib.gv_video_decoder_get_frame_count(decoder)
     fps = lib.gv_video_decoder_get_fps(decoder)
     frame_bytes = lib.gv_video_decoder_get_frame_bytes(decoder)
-    print(string.format("%dx%d, %d frames, %.2f fps", width, height, frame_count, fps))
+    local format_id = lib.gv_video_decoder_get_format(decoder)
+    local love_format = get_love_compressed_format(format_id)
+    local supported = get_supported_compressed_formats()
+    assert(love_format and supported[love_format], "Unsupported compressed format: " .. tostring(format_id))
+    print(string.format("%dx%d, %d frames, %.2f fps, format: %s", width, height, frame_count, fps, love_format))
     buf = ffi.new("uint8_t[?]", frame_bytes)
     frame = 0
     local decoded = lib.gv_video_decoder_decode_frame(decoder, frame, buf)
     assert(decoded == frame_bytes, "decode failed")
-    local compressed_data = love.data.newData(ffi.string(buf, frame_bytes))
-    local image_data = love.image.newCompressedData(compressed_data)
+    local compressed_data = love.data.newByteData(ffi.string(buf, frame_bytes))
+    local image_data = make_compressed_image(compressed_data, love_format)
     tex = love.graphics.newImage(image_data)
     elapsed = 0
 end
@@ -53,8 +114,8 @@ function love.update(dt)
         if frame >= frame_count then frame = 0 end
         local decoded = lib.gv_video_decoder_decode_frame(decoder, frame, buf)
         if decoded == frame_bytes then
-            local compressed_data = love.data.newData(ffi.string(buf, frame_bytes))
-            local image_data = love.image.newCompressedData(compressed_data)
+            local compressed_data = love.data.newByteData(ffi.string(buf, frame_bytes))
+            local image_data = make_compressed_image(compressed_data, love_format)
             tex = love.graphics.newImage(image_data)
         end
     end

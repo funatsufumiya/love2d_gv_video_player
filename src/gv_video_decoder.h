@@ -27,6 +27,7 @@ GV_API uint32_t gv_video_decoder_get_frame_count(gv_video_decoder* decoder);
 GV_API float    gv_video_decoder_get_fps(gv_video_decoder* decoder);
 GV_API uint32_t gv_video_decoder_get_format(gv_video_decoder* decoder);
 GV_API uint32_t gv_video_decoder_get_frame_bytes(gv_video_decoder* decoder);
+GV_API uint32_t gv_video_decoder_decode_frame(gv_video_decoder* dec, uint32_t frame, void* out_buf);
 
 #ifdef __cplusplus
 }
