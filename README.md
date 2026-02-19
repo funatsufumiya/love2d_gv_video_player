@@ -1,5 +1,7 @@
 # LÖVE GV video player 
 
+[gv-video](https://github.com/Ushio/ofxExtremeGpuVideo#binary-file-format-gv) player for LÖVE (Love2D)
+
 ## Demo
 
 ```bash
