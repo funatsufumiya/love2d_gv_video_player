@@ -15,7 +15,7 @@
 $ love --console test/lua/test_gv_love2d_decode/
 ```
 
-## Build dynamic library
+## Build dynamic library (only if you need)
 
 ```bash
 $ git submodule update --init --recursive
