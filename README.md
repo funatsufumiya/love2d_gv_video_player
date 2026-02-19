@@ -14,6 +14,9 @@
 ```bash
 $ git submodule update --init --recursive
 $ love --console test/lua/test_gv_love2d_decode/
+
+# Linux (Ubuntu)
+$ LD_LIBRARY_PATH=. love --console test/lua/test_gv_love2d_decode
 ```
 
 ## Build dynamic library (only if you need)
