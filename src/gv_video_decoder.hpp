@@ -8,6 +8,6 @@
 #endif
 
 extern "C" {
-    // サンプル: 1フレームデコード関数
+    // sample
     DLL_EXPORT int gv_decode_frame(const uint8_t* input, int input_size, uint8_t* output, int output_size);
 }
