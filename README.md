@@ -1,6 +1,6 @@
 # LÖVE GV video player 
 
-[gv-video](https://github.com/Ushio/ofxExtremeGpuVideo#binary-file-format-gv) player for LÖVE (Love2D)
+[gv-video](https://github.com/Ushio/ofxExtremeGpuVideo#binary-file-format-gv) player for [LÖVE](https://www.love2d.org/) (Love2D)
 
 ![docs/screenshot.png](docs/screenshot.png)
 
