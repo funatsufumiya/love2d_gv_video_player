@@ -1,4 +1,10 @@
+
 local ffi = require("ffi")
+
+-- Detect environment
+local is_love = (_G.love ~= nil)
+local is_lovr = (_G.lovr ~= nil)
+
 
 local GVVideoPlayer = {}
 GVVideoPlayer.__index = GVVideoPlayer
@@ -16,12 +22,24 @@ ffi.cdef[[
     uint32_t gv_video_decoder_decode_frame(struct gv_video_decoder* decoder, uint32_t frame, void* out_buf);
 ]]
 
-local function get_love_compressed_format(fmt)
-    if fmt == 1 then return "DXT1"
-    elseif fmt == 3 then return "DXT3"
-    elseif fmt == 5 then return "DXT5"
-    elseif fmt == 7 then return "BC7"
-    else return nil end
+
+-- Map decoder format id to engine-specific format string
+local function get_engine_compressed_format(fmt)
+    if is_love then
+        if fmt == 1 then return "DXT1"
+        elseif fmt == 3 then return "DXT3"
+        elseif fmt == 5 then return "DXT5"
+        elseif fmt == 7 then return "BC7"
+        else return nil end
+    elseif is_lovr then
+        if fmt == 1 then return "bc1"
+        elseif fmt == 3 then return "bc3" -- DXT3→bc3
+        elseif fmt == 5 then return "bc3" -- DXT5→bc3 (LoVRはbc3のみ)
+        elseif fmt == 7 then return "bc7"
+        else return nil end
+    else
+        return nil
+    end
 end
 
 local function get_supported_compressed_formats()
@@ -63,15 +81,24 @@ local function make_dds_header(width, height, dxt_type, mipmaps)
     return header
 end
 
+
 local function make_compressed_image(dxt_data, ext, width, height, mipmaps, dxt_size)
-    local dds_header = make_dds_header(width, height, ext:upper(), mipmaps or 1)
-    local total_size = 128 + dxt_size
-    local dds_bytes = ffi.new("uint8_t[?]", total_size)
-    ffi.copy(dds_bytes, dds_header, 128)
-    ffi.copy(dds_bytes + 128, dxt_data, dxt_size)
-    local byte_data = love.data.newByteData(ffi.string(dds_bytes, total_size))
-    local fake_name = "frame." .. ext:lower()
-    return love.image.newCompressedData(byte_data, fake_name)
+    if is_love then
+        local dds_header = make_dds_header(width, height, ext:upper(), mipmaps or 1)
+        local total_size = 128 + dxt_size
+        local dds_bytes = ffi.new("uint8_t[?]", total_size)
+        ffi.copy(dds_bytes, dds_header, 128)
+        ffi.copy(dds_bytes + 128, dxt_data, dxt_size)
+        local byte_data = love.data.newByteData(ffi.string(dds_bytes, total_size))
+        local fake_name = "frame." .. ext:lower()
+        return love.image.newCompressedData(byte_data, fake_name)
+    elseif is_lovr then
+        -- LoVR expects raw compressed data and format string
+        local lovr_bytes = ffi.string(dxt_data, dxt_size)
+        return lovr.data.newImage(width, height, ext:lower(), lovr_bytes)
+    else
+        error("Unknown engine: neither LÖVE nor LoVR detected")
+    end
 end
 
 function GVVideoPlayer.new(path, loop, pause_on_last)
@@ -86,10 +113,21 @@ function GVVideoPlayer.new(path, loop, pause_on_last)
     self.frame_bytes = self.lib.gv_video_decoder_get_frame_bytes(self.decoder)
     local format_id = self.lib.gv_video_decoder_get_format(self.decoder)
     self.format_id = format_id
-    self.love_format = get_love_compressed_format(format_id)
-    local supported = get_supported_compressed_formats()
-    assert(self.love_format ~= nil, "Format is nil")
-    assert(self.love_format and supported[self.love_format], "Unsupported compressed format: " .. tostring(self.love_format))
+    if format_id == 0 then
+        print("[GVVideoPlayer][DEBUG] format_id is 0. Possible decode failure.")
+        print("  path:", path)
+        print("  width:", self.width, "height:", self.height, "frame_count:", self.frame_count, "fps:", self.fps, "frame_bytes:", self.frame_bytes)
+        print("  decoder ptr:", tostring(self.decoder))
+    end
+    self.engine_format = get_engine_compressed_format(format_id)
+    if not self.engine_format then
+        print("[GVVideoPlayer] format_id:", format_id, "is_love:", is_love, "is_lovr:", is_lovr)
+        error("Format is nil (format_id=" .. tostring(format_id) .. ")")
+    end
+    if is_love then
+        local supported = get_supported_compressed_formats()
+        assert(supported[self.engine_format], "Unsupported compressed format: " .. tostring(self.engine_format))
+    end
     self.buf = ffi.new("uint8_t[?]", self.frame_bytes)
     self.frame = 0
     self.elapsed = 0
@@ -100,7 +138,11 @@ function GVVideoPlayer.new(path, loop, pause_on_last)
     -- first frame decoding
     local decoded = self.lib.gv_video_decoder_decode_frame(self.decoder, self.frame, self.buf)
     assert(decoded == self.frame_bytes, "decode failed")
-    self.tex = love.graphics.newImage(make_compressed_image(self.buf, self.love_format, self.width, self.height, 1, self.frame_bytes))
+    if is_love then
+        self.tex = love.graphics.newImage(make_compressed_image(self.buf, self.engine_format, self.width, self.height, 1, self.frame_bytes))
+    elseif is_lovr then
+        self.tex = lovr.graphics.newTexture(make_compressed_image(self.buf, self.engine_format, self.width, self.height, 1, self.frame_bytes))
+    end
     return self
 end
 
@@ -126,7 +168,11 @@ function GVVideoPlayer:update(dt)
         end
         local decoded = self.lib.gv_video_decoder_decode_frame(self.decoder, self.frame, self.buf)
         if decoded == self.frame_bytes then
-            self.tex = love.graphics.newImage(make_compressed_image(self.buf, self.love_format, self.width, self.height, 1, self.frame_bytes))
+            if is_love then
+                self.tex = love.graphics.newImage(make_compressed_image(self.buf, self.engine_format, self.width, self.height, 1, self.frame_bytes))
+            elseif is_lovr then
+                self.tex = lovr.graphics.newTexture(make_compressed_image(self.buf, self.engine_format, self.width, self.height, 1, self.frame_bytes))
+            end
         end
     end
 end
@@ -157,9 +203,11 @@ function GVVideoPlayer:stop()
     self.tex = nil
 end
 
+
 function GVVideoPlayer:getFormat()
-    return self.format_id, self.love_format
+    return self.format_id, self.engine_format
 end
+
 
 function GVVideoPlayer:draw(x, y, r, sx, sy)
     if not self.tex then return end
@@ -168,7 +216,11 @@ function GVVideoPlayer:draw(x, y, r, sx, sy)
     r = r or 0
     sx = sx or 1
     sy = sy or 1
-    love.graphics.draw(self.tex, x, y, r, sx, sy)
+    if is_love then
+        love.graphics.draw(self.tex, x, y, r, sx, sy)
+    elseif is_lovr then
+        lovr.graphics.draw(self.tex, x, y, z or 0, sx, sy, sz or 1)
+    end
 end
 
 function GVVideoPlayer:setPauseOnLast(pause_on_last)
