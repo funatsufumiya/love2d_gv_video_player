@@ -161,6 +161,10 @@ function GVVideoPlayer:getFormat()
     return self.format_id, self.love_format
 end
 
+function GVVideoPlayer:getTexture()
+    return self.tex
+end
+
 function GVVideoPlayer:draw(x, y, r, sx, sy)
     if not self.tex then return end
     x = x or 0
