@@ -25,6 +25,16 @@ $ LD_LIBRARY_PATH=. love --console test/lua/test_gv_love2d_decode
 $ DYLD_LIBRARY_PATH=. love --console test/lua/test_gv_love2d_decode
 ```
 
+## Threaded ver
+
+[GVVideoPlayerThreaded](./GVVideoPlayerThreaded.lua) is useful when you want to use threaded decoder (for big, heavy video.)
+
+Usage: [test/lua/test_gv_love2d_decode_threaded/main.lua](test/lua/test_gv_love2d_decode_threaded/main.lua)
+
+```
+$ love --console test/lua/test_gv_love2d_decode_threaded/
+```
+
 ## Build dynamic library (only if you need)
 
 ```bash
