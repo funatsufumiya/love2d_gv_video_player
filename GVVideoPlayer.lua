@@ -100,7 +100,9 @@ function GVVideoPlayer.new(path, loop, pause_on_last)
     -- first frame decoding
     local decoded = self.lib.gv_video_decoder_decode_frame(self.decoder, self.frame, self.buf)
     assert(decoded == self.frame_bytes, "decode failed")
-    self.tex = love.graphics.newImage(make_compressed_image(self.buf, self.love_format, self.width, self.height, 1, self.frame_bytes))
+    local compressed = make_compressed_image(self.buf, self.love_format, self.width, self.height, 1, self.frame_bytes)
+    self.tex = love.graphics.newImage(compressed)
+    compressed:release()
     return self
 end
 
@@ -129,7 +131,9 @@ function GVVideoPlayer:update(dt)
             if self.tex ~= nil then
                 self.tex:release()
             end
-            self.tex = love.graphics.newImage(make_compressed_image(self.buf, self.love_format, self.width, self.height, 1, self.frame_bytes))
+            local compressed = make_compressed_image(self.buf, self.love_format, self.width, self.height, 1, self.frame_bytes)
+            self.tex = love.graphics.newImage(compressed)
+            compressed:release()
         end
     end
 end
