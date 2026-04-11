@@ -16,7 +16,7 @@ end
 
 function love.load()
     local video_path = to_abs_path("../../test_assets/gv_assets_for_test/alpha-countdown-blue.gv")
-    player = GVVideoPlayer.new(video_path, false, true)
+    player = GVVideoPlayer.new(video_path, true, true)
     local w, h = player:getDimensions()
     local frames = player:getFrameCount()
     local fps = player:getFPS()

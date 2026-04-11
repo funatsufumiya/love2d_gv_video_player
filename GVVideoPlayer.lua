@@ -126,6 +126,9 @@ function GVVideoPlayer:update(dt)
         end
         local decoded = self.lib.gv_video_decoder_decode_frame(self.decoder, self.frame, self.buf)
         if decoded == self.frame_bytes then
+            if self.tex ~= nil then
+                self.tex:release()
+            end
             self.tex = love.graphics.newImage(make_compressed_image(self.buf, self.love_format, self.width, self.height, 1, self.frame_bytes))
         end
     end
